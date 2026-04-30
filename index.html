@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Norsk — Language App</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script type="text/babel">
+// ─── SETTINGS PANEL ──────────────────────────────────────────────────────────
+
+const __TWEAKS_STYLE = `
+  .twk-panel{position:fixed;right:16px;bottom:64px;z-index:2147483646;width:280px;
+    max-height:calc(100vh - 32px);display:flex;flex-direction:column;
+    background:rgba(250,249,247,.78);color:#29261b;
+    -webkit-backdrop-filter:blur(24px) saturate(160%);backdrop-filter:blur(24px) saturate(160%);
+    border:.5px solid rgba(255,255,255,.6);border-radius:14px;
+    box-shadow:0 1px 0 rgba(255,255,255,.5) inset,0 12px 40px rgba(0,0,0,.18);
+    font:11.5px/1.4 ui-sans-serif,system-ui,-apple-system,sans-serif;overflow:hidden}
+  .twk-hd{display:flex;align-items:center;justify-content:space-between;
+    padding:10px 8px 10px 14px;cursor:move;user-select:none}
+  .twk-hd b{font-size:12px;font-weight:600;letter-spacing:.01em}
+  .twk-x{appearance:none;border:0;background:transparent;color:rgba(41,38,27,.55);
+    width:22px;height:22px;border-radius:6px;cursor:default;font-size:13px;line-height:1}
+  .twk-x:hover{background:rgba(0,0,0,.06);color:#29261b}
+  .twk-body{padding:2px 14px 14px;display:flex;flex-direction:column;gap:10px;
+    overflow-y:auto;overflow-x:hidden;min-height:0;
+    scrollbar-width:thin;scrollbar-color:rgba(0,0,0,.15) transparent}
+  .twk-body::-webkit-scrollbar{width:8px}
+  .twk-body::-webkit-scrollbar-track{background:transparent;margin:2px}
+  .twk-body::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:4px;
+    border:2px solid transparent;background-clip:content-box}
+  .twk-body::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,.25);
+    border:2px solid transparent;background-clip:content-box}
+  .twk-row{display:flex;flex-direction:column;gap:5px}
+  .twk-lbl{display:flex;justify-content:space-between;align-items:baseline;
+    color:rgba(41,38,27,.72)}
+  .twk-lbl>span:first-child{font-weight:500}
+  .twk-sect{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+    color:rgba(41,38,27,.45);padding:10px 0 0}
+  .twk-sect:first-child{padding-top:0}
+  .twk-seg{position:relative;display:flex;padding:2px;border-radius:8px;
+    background:rgba(0,0,0,.06);user-select:none}
+  .twk-seg-thumb{position:absolute;top:2px;bottom:2px;border-radius:6px;
+    background:rgba(255,255,255,.9);box-shadow:0 1px 2px rgba(0,0,0,.12);
+    transition:left .15s cubic-bezier(.3,.7,.4,1),width .15s}
+  .twk-seg.dragging .twk-seg-thumb{transition:none}
+  .twk-seg button{appearance:none;position:relative;z-index:1;flex:1;border:0;
+    background:transparent;color:inherit;font:inherit;font-weight:500;min-height:22px;
+    border-radius:6px;cursor:default;padding:4px 6px;line-height:1.2;overflow-wrap:anywhere}
+`;
+
+function useTweaks(defaults) {
+  const [values, setValues] = React.useState(defaults);
+  const setTweak = React.useCallback((keyOrEdits, val) => {
+    const edits = typeof keyOrEdits === 'object' && keyOrEdits !== null
+      ? keyOrEdits : { [keyOrEdits]: val };
+    setValues((prev) => ({ ...prev, ...edits }));
+  }, []);
+  return [values, setTweak];
+}
+
+function TweaksPanel({ open, onClose, title = 'Settings', children }) {
+  const dragRef = React.useRef(null);
+  const offsetRef = React.useRef({ x: 16, y: 64 });
+  const PAD = 16;
+  const clampToViewport = React.useCallback(() => {
+    const panel = dragRef.current;
+    if (!panel) return;
+    const w = panel.offsetWidth, h = panel.offsetHeight;
+    const maxRight = Math.max(PAD, window.innerWidth - w - PAD);
+    const maxBottom = Math.max(PAD, window.innerHeight - h - PAD);
+    offsetRef.current = {
+      x: Math.min(maxRight, Math.max(PAD, offsetRef.current.x)),
+      y: Math.min(maxBottom, Math.max(PAD, offsetRef.current.y)),
+    };
+    panel.style.right = offsetRef.current.x + 'px';
+    panel.style.bottom = offsetRef.current.y + 'px';
+  }, []);
+
+  React.useEffect(() => {
+    if (!open) return;
+    clampToViewport();
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', clampToViewport);
+      return () => window.removeEventListener('resize', clampToViewport);
+    }
+    const ro = new ResizeObserver(clampToViewport);
+    ro.observe(document.documentElement);
+    return () => ro.disconnect();
+  }, [open, clampToViewport]);
+
+  const onDragStart = (e) => {
+    const panel = dragRef.current;
+    if (!panel) return;
+    const r = panel.getBoundingClientRect();
+    const sx = e.clientX, sy = e.clientY;
+    const startRight = window.innerWidth - r.right;
+    const startBottom = window.innerHeight - r.bottom;
+    const move = (ev) => {
+      offsetRef.current = { x: startRight - (ev.clientX - sx), y: startBottom - (ev.clientY - sy) };
+      clampToViewport();
+    };
+    const up = () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+  };
+
+  if (!open) return null;
+  return (
+    <>
+      <style>{__TWEAKS_STYLE}</style>
+      <div ref={dragRef} className="twk-panel" style={{ right: offsetRef.current.x, bottom: offsetRef.current.y }}>
+        <div className="twk-hd" onMouseDown={onDragStart}>
+          <b>{title}</b>
+          <button className="twk-x" aria-label="Close settings" onMouseDown={(e) => e.stopPropagation()} onClick={onClose}>✕</button>
+        </div>
+        <div className="twk-body">{children}</div>
+      </div>
+    </>
+  );
+}
+
+function TweakSection({ label, children }) {
+  return (<><div className="twk-sect">{label}</div>{children}</>);
+}
+
+function TweakRow({ label, children }) {
+  return (
+    <div className="twk-row">
+      <div className="twk-lbl"><span>{label}</span></div>
+      {children}
+    </div>
+  );
+}
+
+function TweakRadio({ label, value, options, onChange }) {
+  const trackRef = React.useRef(null);
+  const [dragging, setDragging] = React.useState(false);
+  const opts = options.map((o) => (typeof o === 'object' ? o : { value: o, label: o }));
+  const idx = Math.max(0, opts.findIndex((o) => o.value === value));
+  const n = opts.length;
+  const valueRef = React.useRef(value);
+  valueRef.current = value;
+  const segAt = (clientX) => {
+    const r = trackRef.current.getBoundingClientRect();
+    const inner = r.width - 4;
+    const i = Math.floor(((clientX - r.left - 2) / inner) * n);
+    return opts[Math.max(0, Math.min(n - 1, i))].value;
+  };
+  const onPointerDown = (e) => {
+    setDragging(true);
+    const v0 = segAt(e.clientX);
+    if (v0 !== valueRef.current) onChange(v0);
+    const move = (ev) => { if (!trackRef.current) return; const v = segAt(ev.clientX); if (v !== valueRef.current) onChange(v); };
+    const up = () => { setDragging(false); window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+  return (
+    <TweakRow label={label}>
+      <div ref={trackRef} role="radiogroup" onPointerDown={onPointerDown} className={dragging ? 'twk-seg dragging' : 'twk-seg'}>
+        <div className="twk-seg-thumb" style={{ left: `calc(2px + ${idx} * (100% - 4px) / ${n})`, width: `calc((100% - 4px) / ${n})` }} />
+        {opts.map((o) => (<button key={o.value} type="button" role="radio" aria-checked={o.value === value}>{o.label}</button>))}
+      </div>
+    </TweakRow>
+  );
+}
+</script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { width: 100vw; height: 100vh; overflow: hidden; background: #111; font-family: 'Sora', sans-serif; }
+  #root { width: 100%; height: 100%; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes flipIn { from { transform: rotateY(90deg); opacity: 0; } to { transform: rotateY(0deg); opacity: 1; } }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)} 40%{transform:translateX(6px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+// ─── SUPABASE ────────────────────────────────────────────────────────────────
+const SUPABASE_URL  = 'https://srxshpetxtklfjirfvxl.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNyeHNocGV0eHRrbGZqaXJmdnhsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxOTgyMzgsImV4cCI6MjA4Nzc3NDIzOH0.3toPLqEuYnqIDe7tTlbRdZCPUdk-IKbc3Gc5tdTQPhI';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// ─── FALLBACK DATA (used if DB is empty / unreachable) ────────────────────
+const FALLBACK_VERBS = [
+  { english: 'to be',    infinitiv: 'å være',  presens: 'er',      preteritum: 'var',    presens_perfectum: 'har vært'   },
+  { english: 'to have',  infinitiv: 'å ha',     presens: 'har',     preteritum: 'hadde',  presens_perfectum: 'har hatt'   },
+  { english: 'to go',    infinitiv: 'å gå',     presens: 'går',     preteritum: 'gikk',   presens_perfectum: 'har gått'   },
+  { english: 'to say',   infinitiv: 'å si',     presens: 'sier',    preteritum: 'sa',     presens_perfectum: 'har sagt'   },
+  { english: 'to see',   infinitiv: 'å se',     presens: 'ser',     preteritum: 'så',     presens_perfectum: 'har sett'   },
+  { english: 'to eat',   infinitiv: 'å spise',  presens: 'spiser',  preteritum: 'spiste', presens_perfectum: 'har spist'  },
+];
+const FALLBACK_VOCAB = [
+  { english: 'house', norwegian: 'hus',    hint: 'n.' },
+  { english: 'book',  norwegian: 'bok',    hint: 'n.' },
+  { english: 'day',   norwegian: 'dag',    hint: 'n.' },
+  { english: 'water', norwegian: 'vann',   hint: 'n.' },
+  { english: 'good',  norwegian: 'god',    hint: 'adj.' },
+  { english: 'big',   norwegian: 'stor',   hint: 'adj.' },
+];
+
+const VERB_FORMS = [
+  { key: 'presens',          label: 'Presens',          sublabel: 'present tense'   },
+  { key: 'preteritum',       label: 'Preteritum',       sublabel: 'simple past'     },
+  { key: 'presens_perfectum',label: 'Presens Perfektum',sublabel: 'present perfect' },
+];
+
+// ─── THEMES ─────────────────────────────────────────────────────────────────
+const THEMES = {
+  fjord: {
+    name: 'Fjord',
+    bg: '#edf0ec',
+    surface: '#ffffff',
+    surfaceAlt: '#f4f6f3',
+    text: '#1a1e18',
+    textSub: '#677062',
+    accent: '#3a6b42',
+    accentSoft: '#d4e6d8',
+    border: '#d0d5ce',
+    correct: '#3a7c50',
+    correctSoft: '#d3ead9',
+    wrong: '#b54c3c',
+    wrongSoft: '#f0d5d1',
+    statusTime: '#1a1e18',
+  },
+  birch: {
+    name: 'Birch',
+    bg: '#f2ece3',
+    surface: '#faf7f1',
+    surfaceAlt: '#ede7dc',
+    text: '#1e1910',
+    textSub: '#7a6d5a',
+    accent: '#7c4e2a',
+    accentSoft: '#ead9cc',
+    border: '#ddd3c3',
+    correct: '#4d7c40',
+    correctSoft: '#d5e8cf',
+    wrong: '#b54c3c',
+    wrongSoft: '#f0d5d1',
+    statusTime: '#1e1910',
+  },
+  natt: {
+    name: 'Natt',
+    bg: '#141820',
+    surface: '#1e2530',
+    surfaceAlt: '#18202a',
+    text: '#e4dfd4',
+    textSub: '#7a8496',
+    accent: '#5e9e88',
+    accentSoft: '#1e3530',
+    border: '#2a3344',
+    correct: '#5e9e6a',
+    correctSoft: '#1e3526',
+    wrong: '#c06060',
+    wrongSoft: '#351e1e',
+    statusTime: '#e4dfd4',
+  },
+};
+
+// ─── UTILITIES ───────────────────────────────────────────────────────────────
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function getChoices(correct, allItems, field) {
+  const wrongs = shuffle(allItems.filter(v => v[field] !== correct)).slice(0, 3).map(v => v[field]);
+  return shuffle([correct, ...wrongs]);
+}
+
+// ─── SHARED UI ───────────────────────────────────────────────────────────────
+function StatusBar({ t }) {
+  return (
+    <div style={{ height: 50, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', paddingBottom: 8, paddingLeft: 20, paddingRight: 20 }}>
+      <span style={{ fontSize: 15, fontWeight: 600, color: t.statusTime }}>9:41</span>
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <svg width="17" height="12" viewBox="0 0 17 12" fill={t.statusTime}><rect x="0" y="4" width="3" height="8" rx="1" opacity=".4"/><rect x="4.5" y="2.5" width="3" height="9.5" rx="1" opacity=".6"/><rect x="9" y="1" width="3" height="11" rx="1" opacity=".8"/><rect x="13.5" y="0" width="3" height="12" rx="1"/></svg>
+        <svg width="16" height="12" viewBox="0 0 16 12" fill={t.statusTime}><path d="M8 2.5C10.5 2.5 12.7 3.5 14.2 5.2L15.5 3.8C13.6 1.7 11 .5 8 .5S2.4 1.7.5 3.8L1.8 5.2C3.3 3.5 5.5 2.5 8 2.5Z" opacity=".5"/><path d="M8 5.5C9.8 5.5 11.4 6.2 12.6 7.4L13.9 6C12.4 4.4 10.3 3.5 8 3.5S3.6 4.4 2.1 6L3.4 7.4C4.6 6.2 6.2 5.5 8 5.5Z" opacity=".75"/><path d="M8 8.5C9.1 8.5 10.1 8.9 10.8 9.6L12.1 8.2C11 7.2 9.6 6.5 8 6.5S5 7.2 3.9 8.2L5.2 9.6C5.9 8.9 6.9 8.5 8 8.5Z"/><circle cx="8" cy="11.5" r="1.5"/></svg>
+        <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3.5" stroke={t.statusTime} strokeOpacity=".35"/><rect x="2" y="2" width="17" height="8" rx="2" fill={t.statusTime}/><path d="M23 4.5V7.5A1.5 1.5 0 000 0V-3A1.5 1.5 0 000 0Z" fill={t.statusTime} fillOpacity=".4" transform="translate(23,4.5)"/></svg>
+      </div>
+    </div>
+  );
+}
+
+function HomeIndicator({ t }) {
+  return (
+    <div style={{ height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ width: 134, height: 5, borderRadius: 3, background: t.text, opacity: 0.18 }}></div>
+    </div>
+  );
+}
+
+function BackButton({ t, onPress, label = 'Back' }) {
+  return (
+    <button onClick={onPress} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, color: t.accent, fontFamily: 'Sora, sans-serif', fontSize: 15, fontWeight: 500, padding: '0 0 0 2px' }}>
+      <svg width="8" height="14" viewBox="0 0 8 14" fill="none"><path d="M7 1L1 7L7 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+      {label}
+    </button>
+  );
+}
+
+function ProgressBar({ current, total, t }) {
+  return (
+    <div style={{ height: 3, background: t.border, borderRadius: 2, overflow: 'hidden', margin: '0 20px' }}>
+      <div style={{ height: '100%', width: `${(current / total) * 100}%`, background: t.accent, borderRadius: 2, transition: 'width 0.4s ease' }}></div>
+    </div>
+  );
+}
+
+// ─── HOME SCREEN ─────────────────────────────────────────────────────────────
+function HomeScreen({ t, verbs, vocab, onNavigate }) {
+  const cards = [
+    { id: 'vocab-en-no', icon: '🇬🇧→🇳🇴', title: 'Nouns', sub: 'English → Norwegian', count: `${vocab.length} words` },
+    { id: 'verbs',       icon: '∂',         title: 'Verb Forms', sub: 'Presens · Preteritum · Perfektum', count: `${verbs.length} verbs` },
+  ];
+  return (
+    <div style={{ flex: 1, padding: '0 20px', animation: 'fadeUp .35s ease', overflowY: 'auto', height: '100%' }}>
+      <div style={{ paddingTop: 18, paddingBottom: 8 }}>
+        <p style={{ fontSize: 13, color: t.textSub, fontWeight: 400, letterSpacing: '.04em', textTransform: 'uppercase', marginBottom: 4 }}>Hei!</p>
+        <h1 style={{ fontSize: 28, fontWeight: 700, color: t.text, lineHeight: 1.1, letterSpacing: '-.02em' }}>Norsk</h1>
+        <p style={{ fontSize: 14, color: t.textSub, marginTop: 4, fontWeight: 400 }}>B1–B2 practice</p>
+      </div>
+
+      <div style={{ height: 1, background: t.border, margin: '16px 0' }}></div>
+
+      <p style={{ fontSize: 12, color: t.textSub, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: 12 }}>Practice</p>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {cards.map(c => (
+          <button key={c.id} onClick={() => onNavigate(c.id)}
+            style={{ background: t.surface, border: `1px solid ${t.border}`, borderRadius: 16, padding: '16px 18px', cursor: 'pointer', textAlign: 'left', transition: 'transform .12s ease, box-shadow .12s ease', fontFamily: 'Sora, sans-serif' }}
+            onMouseDown={e => e.currentTarget.style.transform='scale(.98)'}
+            onMouseUp={e => e.currentTarget.style.transform='scale(1)'}
+            onTouchStart={e => e.currentTarget.style.transform='scale(.98)'}
+            onTouchEnd={e => e.currentTarget.style.transform='scale(1)'}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <p style={{ fontSize: 15, fontWeight: 600, color: t.text, marginBottom: 3 }}>{c.title}</p>
+                <p style={{ fontSize: 12, color: t.textSub, fontWeight: 400 }}>{c.sub}</p>
+              </div>
+              <span style={{ fontSize: 13, color: t.textSub, background: t.surfaceAlt, borderRadius: 20, padding: '3px 8px', fontWeight: 500, whiteSpace: 'nowrap', marginLeft: 8 }}>{c.count}</span>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      <div style={{ marginTop: 20, background: t.surfaceAlt, border: `1px solid ${t.border}`, borderRadius: 14, padding: '14px 16px' }}>
+        <p style={{ fontSize: 12, color: t.textSub, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 10 }}>Quick reference</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {verbs.slice(0,4).map(v => (
+            <div key={v.english} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 12, color: t.textSub }}>{v.english}</span>
+              <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 12, color: t.text, fontWeight: 500 }}>{v.infinitiv}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ height: 16 }}></div>
+    </div>
+  );
+}
+
+// ─── VOCAB SESSION ────────────────────────────────────────────────────────────
+// cardType cycles: 0=flip, 1=multiple choice, 2=free text
+function VocabSession({ t, vocab, onBack, onAgain, exerciseMix, d }) {
+  const [cards] = React.useState(() => shuffle(vocab));
+  const [idx, setIdx] = React.useState(0);
+  const [flipped, setFlipped] = React.useState(false);
+  const [selected, setSelected] = React.useState(null);
+  const [result, setResult] = React.useState(null);
+  const [done, setDone] = React.useState(false);
+  const [score, setScore] = React.useState(0);
+  const [animKey, setAnimKey] = React.useState(0);
+  const [shakeKey, setShakeKey] = React.useState(0);
+
+  const cardTypeMap = { cycle: [0,1,2], write: [1,2,2], reveal: [0,0,0] };
+  const seq = cardTypeMap[exerciseMix] || cardTypeMap.cycle;
+  const cardType = seq[idx % seq.length];
+  const card = cards[idx];
+  const front = card.english;
+  const back  = card.norwegian;
+
+  const choices = React.useMemo(() => getChoices(back, vocab, 'norwegian'), [idx]);
+
+  function advance(correct) {
+    if (correct) setScore(s => s + 1);
+    setTimeout(() => {
+      if (idx + 1 >= cards.length) { setDone(true); return; }
+      setIdx(i => i + 1);
+      setFlipped(false);
+      setSelected(null);
+      setResult(null);
+      setAnimKey(k => k + 1);
+    }, 700);
+  }
+
+  function handleChoice(choice) {
+    if (selected) return;
+    setSelected(choice);
+    const correct = choice === back;
+    setResult(correct ? 'correct' : 'wrong');
+    if (!correct) setShakeKey(k => k + 1);
+    advance(correct);
+  }
+
+  const modeLabel = ['Card reveal', 'Multiple choice', 'Write it'][cardType];
+
+  if (done) return <SessionEnd t={t} score={score} total={cards.length} onBack={onBack} onAgain={onAgain} label="Words correct" />;
+
+  return (
+    <div style={{ flex: 1, height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: '14px 20px 10px' }}>
+        <BackButton t={t} onPress={onBack} />
+        <div style={{ marginTop: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span style={{ fontSize: 12, color: t.textSub }}>{modeLabel}</span>
+            <span style={{ fontSize: 12, color: t.textSub }}>{idx + 1} / {cards.length}</span>
+          </div>
+          <ProgressBar current={idx + 1} total={cards.length} t={t} />
+        </div>
+      </div>
+
+      <div key={animKey} style={{ flex: 1, padding: '8px 20px', display: 'flex', flexDirection: 'column', gap: 12, animation: 'fadeUp .25s ease', overflowY: 'auto' }}>
+        {cardType === 0 && <FlipCard t={t} front={front} back={back} frontLabel="English" backLabel="Norsk" flipped={flipped} onFlip={() => setFlipped(true)} hint={card.hint} onGotIt={() => advance(true)} onRepeat={() => advance(false)} d={d} />}
+        {cardType === 1 && <MultipleChoice t={t} front={front} frontLabel="English" backLabel="Norsk" choices={choices} correct={back} selected={selected} result={result} shakeKey={shakeKey} hint={card.hint} onChoice={handleChoice} d={d} />}
+        {cardType === 2 && <FreeText t={t} front={front} correct={back} hint={card.hint} onAdvance={advance} d={d} />}
+      </div>
+    </div>
+  );
+}
+
+function FlipCard({ t, front, back, frontLabel, backLabel, flipped, onFlip, hint, onGotIt, onRepeat, d }) {
+  const dp = d || DENSITY.comfortable;
+  return (
+    <>
+      <div onClick={!flipped ? onFlip : undefined}
+        style={{ cursor: flipped ? 'default' : 'pointer', background: t.surface, border: `1px solid ${t.border}`, borderRadius: 20, padding: dp.cardPad, minHeight: 180, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'box-shadow .2s', animation: flipped ? 'flipIn .3s ease' : 'none' }}>
+        <p style={{ fontSize: 11, color: t.textSub, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase' }}>{flipped ? backLabel : frontLabel}</p>
+        <p style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: dp.fontSize, fontWeight: 500, color: t.text, textAlign: 'center', letterSpacing: '-.01em' }}>
+          {flipped ? back : front}
+        </p>
+        {hint && <span style={{ fontSize: 11, color: t.textSub, marginTop: 4 }}>{hint}</span>}
+        {!flipped && <p style={{ fontSize: 12, color: t.textSub, marginTop: 8 }}>Tap to reveal</p>}
+      </div>
+
+      {flipped && (
+        <div style={{ display: 'flex', gap: 10, animation: 'fadeUp .2s ease' }}>
+          <button onClick={onRepeat} style={{ flex: 1, padding: '14px', background: t.surfaceAlt, border: `1px solid ${t.border}`, borderRadius: 14, cursor: 'pointer', fontFamily: 'Sora, sans-serif', fontSize: 14, fontWeight: 500, color: t.textSub }}>
+            Again
+          </button>
+          <button onClick={onGotIt} style={{ flex: 1, padding: '14px', background: t.accent, border: 'none', borderRadius: 14, cursor: 'pointer', fontFamily: 'Sora, sans-serif', fontSize: 14, fontWeight: 600, color: '#fff' }}>
+            Got it
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
+function MultipleChoice({ t, front, frontLabel, backLabel, choices, correct, selected, result, shakeKey, hint, onChoice, d }) {
+  const dp = d || DENSITY.comfortable;
+  return (
+    <>
+      <div style={{ background: t.surface, border: `1px solid ${t.border}`, borderRadius: 20, padding: dp.cardPadLg, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+        <p style={{ fontSize: 11, color: t.textSub, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase' }}>{frontLabel}</p>
+        <p style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: dp.fontSize - 2, fontWeight: 500, color: t.text, textAlign: 'center' }}>{front}</p>
+        {hint && <span style={{ fontSize: 11, color: t.textSub }}>{hint}</span>}
+      </div>
+
+      <p style={{ fontSize: 11, color: t.textSub, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase', textAlign: 'center' }}>{backLabel}</p>
+
+      <div key={shakeKey} style={{ display: 'flex', flexDirection: 'column', gap: dp.gap, animation: result === 'wrong' ? `shake .4s ease` : 'none' }}>
+        {choices.map(ch => {
+          let bg = t.surface, border = t.border, color = t.text;
+          if (selected === ch) {
+            bg    = ch === correct ? t.correctSoft : t.wrongSoft;
+            border= ch === correct ? t.correct      : t.wrong;
+            color = ch === correct ? t.correct      : t.wrong;
+          } else if (selected && ch === correct) {
+            bg = t.correctSoft; border = t.correct; color = t.correct;
+          }
+          return (
+            <button key={ch} onClick={() => onChoice(ch)}
+              style={{ background: bg, border: `1.5px solid ${border}`, borderRadius: 14, padding: '14px 18px', cursor: selected ? 'default' : 'pointer', fontFamily: 'IBM Plex Mono, monospace', fontSize: 16, fontWeight: 500, color, textAlign: 'left', transition: 'background .25s, border-color .25s, color .25s' }}>
+              {ch}
+            </button>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+function FreeText({ t, front, correct, hint, onAdvance, d }) {
+  const dp = d || DENSITY.comfortable;
+  const [value, setValue] = React.useState('');
+  const [result, setResult] = React.useState(null);
+  const inputRef = React.useRef(null);
+
+  React.useEffect(() => { inputRef.current?.focus(); }, []);
+
+  function check() {
+    if (!value.trim() || result) return;
+    const ok = value.trim().toLowerCase() === correct.toLowerCase();
+    setResult(ok ? 'correct' : 'wrong');
+    setTimeout(() => onAdvance(ok), 900);
+  }
+
+  function handleKey(e) { if (e.key === 'Enter') check(); }
+
+  const borderColor = result === 'correct' ? t.correct : result === 'wrong' ? t.wrong : value ? t.accent : t.border;
+  const bg          = result === 'correct' ? t.correctSoft : result === 'wrong' ? t.wrongSoft : t.surface;
+
+  return (
+    <>
+      <div style={{ background: t.surface, border: `1px solid ${t.border}`, borderRadius: 20, padding: dp.cardPad, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+        <p style={{ fontSize: 11, color: t.textSub, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase' }}>English</p>
+        <p style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: dp.fontSize, fontWeight: 500, color: t.text, textAlign: 'center' }}>{front}</p>
+        {hint && <span style={{ fontSize: 11, color: t.textSub }}>{hint}</span>}
+      </div>
+
+      <p style={{ fontSize: 11, color: t.textSub, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase', textAlign: 'center' }}>Write in Norwegian</p>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <input
+          ref={inputRef}
+          value={value}
+          onChange={e => setValue(e.target.value)}
+          onKeyDown={handleKey}
+          disabled={!!result}
+          placeholder="Type the Norwegian word…"
+          style={{ width: '100%', padding: '14px 16px', background: bg, border: `1.5px solid ${borderColor}`, borderRadius: 14, fontFamily: 'IBM Plex Mono, monospace', fontSize: 16, color: t.text, outline: 'none', transition: 'border-color .2s, background .2s', caretColor: t.accent }}
+        />
+        {!result && (
+          <button onClick={check} disabled={!value.trim()}
+            style={{ width: '100%', padding: '14px', background: value.trim() ? t.accent : t.surfaceAlt, border: 'none', borderRadius: 14, cursor: value.trim() ? 'pointer' : 'default', fontFamily: 'Sora, sans-serif', fontSize: 14, fontWeight: 600, color: value.trim() ? '#fff' : t.textSub, transition: 'background .2s' }}>
+            Check
+          </button>
+        )}
+        {result && (
+          <div style={{ animation: 'fadeUp .2s ease', background: result === 'correct' ? t.correctSoft : t.wrongSoft, border: `1px solid ${result === 'correct' ? t.correct : t.wrong}`, borderRadius: 14, padding: '12px 16px' }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: result === 'correct' ? t.correct : t.wrong }}>
+              {result === 'correct' ? 'Riktig! ✓' : `Feil — correct: ${correct}`}
+            </p>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+// ─── VERB SESSION ─────────────────────────────────────────────────────────────
+function VerbSession({ t, verbs, onBack, onAgain }) {
+  const questions = React.useMemo(() => {
+    const q = [];
+    shuffle(verbs).slice(0, 10).forEach(v => {
+      const form = VERB_FORMS[Math.floor(Math.random() * VERB_FORMS.length)];
+      q.push({ verb: v, form });
+    });
+    return q;
+  }, []);
+
+  const [idx, setIdx] = React.useState(0);
+  const [selected, setSelected] = React.useState(null);
+  const [result, setResult] = React.useState(null);
+  const [done, setDone] = React.useState(false);
+  const [score, setScore] = React.useState(0);
+  const [animKey, setAnimKey] = React.useState(0);
+  const [shakeKey, setShakeKey] = React.useState(0);
+
+  const q = questions[idx];
+  const correct = q.verb[q.form.key];
+
+  const choices = React.useMemo(() => {
+    return getChoices(correct, verbs, q.form.key);
+  }, [idx]);
+
+  function handleChoice(ch) {
+    if (selected) return;
+    setSelected(ch);
+    const ok = ch === correct;
+    setResult(ok ? 'correct' : 'wrong');
+    if (!ok) setShakeKey(k => k + 1);
+    if (ok) setScore(s => s + 1);
+    setTimeout(() => {
+      if (idx + 1 >= questions.length) { setDone(true); return; }
+      setIdx(i => i + 1);
+      setSelected(null);
+      setResult(null);
+      setAnimKey(k => k + 1);
+    }, 700);
+  }
+
+  if (done) return <SessionEnd t={t} score={score} total={questions.length} onBack={onBack} onAgain={onAgain} label="Correct answers" />;
+
+  return (
+    <div style={{ flex: 1, height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: '14px 20px 10px' }}>
+        <BackButton t={t} onPress={onBack} />
+        <div style={{ marginTop: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span style={{ fontSize: 12, color: t.textSub }}>Verb forms</span>
+            <span style={{ fontSize: 12, color: t.textSub }}>{idx + 1} / {questions.length}</span>
+          </div>
+          <ProgressBar current={idx + 1} total={questions.length} t={t} />
+        </div>
+      </div>
+
+      <div key={animKey} style={{ flex: 1, padding: '8px 20px', display: 'flex', flexDirection: 'column', gap: 12, animation: 'fadeUp .25s ease', overflowY: 'auto' }}>
+        <div style={{ background: t.surface, border: `1px solid ${t.border}`, borderRadius: 20, padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <p style={{ fontSize: 11, color: t.textSub, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase' }}>Infinitiv</p>
+          <p style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 26, fontWeight: 500, color: t.text }}>{q.verb.infinitiv}</p>
+          <p style={{ fontSize: 13, color: t.textSub }}>{q.verb.english}</p>
+        </div>
+
+        <div style={{ background: t.accentSoft, border: `1.5px solid ${t.accent}`, borderRadius: 14, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div>
+            <p style={{ fontSize: 13, fontWeight: 600, color: t.accent }}>What is the {q.form.label}?</p>
+            <p style={{ fontSize: 11, color: t.accent, opacity: .7 }}>{q.form.sublabel}</p>
+          </div>
+        </div>
+
+        <div key={shakeKey} style={{ display: 'flex', flexDirection: 'column', gap: 8, animation: result === 'wrong' ? 'shake .4s ease' : 'none' }}>
+          {choices.map(ch => {
+            let bg = t.surface, border = t.border, color = t.text;
+            if (selected === ch) {
+              bg    = ch === correct ? t.correctSoft : t.wrongSoft;
+              border= ch === correct ? t.correct      : t.wrong;
+              color = ch === correct ? t.correct      : t.wrong;
+            } else if (selected && ch === correct) {
+              bg = t.correctSoft; border = t.correct; color = t.correct;
+            }
+            return (
+              <button key={ch} onClick={() => handleChoice(ch)}
+                style={{ background: bg, border: `1.5px solid ${border}`, borderRadius: 14, padding: '14px 18px', cursor: selected ? 'default' : 'pointer', fontFamily: 'IBM Plex Mono, monospace', fontSize: 15, fontWeight: 500, color, textAlign: 'left', transition: 'background .25s, border-color .25s, color .25s' }}>
+                {ch}
+              </button>
+            );
+          })}
+        </div>
+
+        {selected && (
+          <div style={{ animation: 'fadeUp .2s ease', background: result === 'correct' ? t.correctSoft : t.wrongSoft, border: `1px solid ${result === 'correct' ? t.correct : t.wrong}`, borderRadius: 14, padding: '12px 16px' }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: result === 'correct' ? t.correct : t.wrong }}>
+              {result === 'correct' ? 'Riktig! ✓' : `Feil — correct: ${correct}`}
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── SESSION END ─────────────────────────────────────────────────────────────
+function SessionEnd({ t, score, total, onBack, onAgain, label }) {
+  const pct = Math.round((score / total) * 100);
+  const msg = pct >= 80 ? 'Bra jobbet!' : pct >= 50 ? 'Ikke verst!' : 'Fortsett å øve!';
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 28px', gap: 20, animation: 'fadeUp .4s ease', height: '100%' }}>
+      <div style={{ textAlign: 'center' }}>
+        <p style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 64, fontWeight: 500, color: t.accent, lineHeight: 1 }}>{pct}%</p>
+        <p style={{ fontSize: 20, fontWeight: 600, color: t.text, marginTop: 8 }}>{msg}</p>
+        <p style={{ fontSize: 13, color: t.textSub, marginTop: 4 }}>{label}: {score} / {total}</p>
+      </div>
+      <div style={{ display: 'flex', gap: 10, width: '100%' }}>
+        <button onClick={onBack} style={{ flex: 1, padding: '15px', background: t.surfaceAlt, border: `1px solid ${t.border}`, borderRadius: 14, cursor: 'pointer', fontFamily: 'Sora, sans-serif', fontSize: 14, fontWeight: 500, color: t.text }}>
+          Home
+        </button>
+        <button onClick={onAgain} style={{ flex: 1, padding: '15px', background: t.accent, border: 'none', borderRadius: 14, cursor: 'pointer', fontFamily: 'Sora, sans-serif', fontSize: 14, fontWeight: 600, color: '#fff' }}>
+          Again
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── MAIN APP ─────────────────────────────────────────────────────────────────
+const DENSITY = {
+  compact:     { cardPad: '20px 18px', cardPadLg: '22px 18px', fontSize: 24, gap: 8  },
+  comfortable: { cardPad: '32px 24px', cardPadLg: '24px 20px', fontSize: 28, gap: 12 },
+  spacious:    { cardPad: '44px 28px', cardPadLg: '30px 24px', fontSize: 32, gap: 16 },
+};
+
+function NorwegianApp({ t, verbs, vocab, exerciseMix = 'cycle', density = 'comfortable' }) {
+  const [screen, setScreen] = React.useState('home');
+  const [sessionKey, setSessionKey] = React.useState(0);
+  const d = DENSITY[density] || DENSITY.comfortable;
+
+  const goHome   = () => setScreen('home');
+  const restart  = () => setSessionKey(k => k + 1);
+
+  const inner = () => {
+    if (screen === 'home')        return <HomeScreen   t={t} verbs={verbs} vocab={vocab} onNavigate={setScreen} />;
+    if (screen === 'vocab-en-no') return <VocabSession key={sessionKey} t={t} vocab={vocab} exerciseMix={exerciseMix} d={d} onBack={goHome} onAgain={restart} />;
+    if (screen === 'verbs')       return <VerbSession  key={sessionKey} t={t} verbs={verbs} onBack={goHome} onAgain={restart} />;
+  };
+
+  return (
+    <div style={{ width: 390, height: 844, background: t.bg, borderRadius: 50, overflow: 'hidden', display: 'flex', flexDirection: 'column', fontFamily: 'Sora, sans-serif', boxShadow: '0 30px 80px rgba(0,0,0,0.28)', position: 'relative' }}>
+      <StatusBar t={t} />
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        {inner()}
+      </div>
+      <HomeIndicator t={t} />
+    </div>
+  );
+}
+
+// ─── TWEAK DEFAULTS ──────────────────────────────────────────────────────────
+const TWEAK_DEFAULTS = {
+  theme: 'natt',
+  exerciseMix: 'cycle',
+  density: 'compact',
+};
+
+// ─── DATA HOOK ───────────────────────────────────────────────────────────────
+function useAppData() {
+  const [verbs, setVerbs] = React.useState(null);
+  const [vocab, setVocab] = React.useState(null);
+
+  React.useEffect(() => {
+    async function load() {
+      try {
+        const [vRes, nRes] = await Promise.all([
+          db.from('verbs').select('*'),
+          db.from('nouns').select('*'),
+        ]);
+        if (vRes.error) throw new Error('verbs: ' + vRes.error.message);
+        if (nRes.error) throw new Error('nouns: ' + nRes.error.message);
+
+        const mappedVerbs = (vRes.data || []).map(r => ({
+          english:           r.english          || r.English          || '',
+          infinitiv:         r.infinitiv         || r.Norwegian_infinitiv || r.norwegian_infinitiv || r.Infinitiv || '',
+          presens:           r.presens           || r.Presens          || '',
+          preteritum:        r.preteritum        || r.Preteritum       || '',
+          presens_perfectum: r.presens_perfectum || r.Presens_perfectum || '',
+        })).filter(v => v.infinitiv);
+
+        const mappedVocab = (nRes.data || []).map(r => ({
+          english:   r.english  || r.English  || '',
+          norwegian: r.norsk    || r.norwegian || r.Norwegian || '',
+          hint:      r.hint     || r.category  || '',
+        })).filter(v => v.norwegian);
+
+        setVerbs(mappedVerbs.length ? mappedVerbs : FALLBACK_VERBS);
+        setVocab(mappedVocab.length ? mappedVocab : FALLBACK_VOCAB);
+      } catch(e) {
+        console.error('Supabase fetch error:', e);
+        setVerbs(FALLBACK_VERBS);
+        setVocab(FALLBACK_VOCAB);
+      }
+    }
+    load();
+  }, []);
+
+  return { verbs, vocab };
+}
+
+// ─── ROOT ────────────────────────────────────────────────────────────────────
+function App() {
+  const { verbs, vocab } = useAppData();
+  const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [settingsOpen, setSettingsOpen] = React.useState(false);
+  const loading = !verbs || !vocab;
+  const t = THEMES[tweaks.theme] || THEMES.natt;
+
+  if (loading) {
+    return (
+      <div style={{ width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#141820', flexDirection: 'column', gap: 12 }}>
+        <div style={{ width: 32, height: 32, border: '2.5px solid #2a3344', borderTop: '2.5px solid #5e9e88', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}></div>
+        <p style={{ color: '#7a8496', fontFamily: 'Sora, sans-serif', fontSize: 13 }}>Loading…</p>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0e1014' }}>
+      <NorwegianApp t={t} verbs={verbs} vocab={vocab} exerciseMix={tweaks.exerciseMix} density={tweaks.density} />
+      <button
+        onClick={() => setSettingsOpen(o => !o)}
+        title="Settings"
+        style={{
+          position: 'fixed', bottom: 16, right: 16, zIndex: 2147483645,
+          width: 36, height: 36, borderRadius: 18, border: 'none',
+          background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)',
+          cursor: 'pointer', fontSize: 17, display: 'flex', alignItems: 'center',
+          justifyContent: 'center', backdropFilter: 'blur(8px)',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.35)', transition: 'background .15s',
+        }}
+        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.18)'}
+        onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+      >⚙</button>
+      <TweaksPanel open={settingsOpen} onClose={() => setSettingsOpen(false)}>
+        <TweakSection label="Theme">
+          <TweakRadio value={tweaks.theme} onChange={v => setTweak('theme', v)}
+            options={[{ value: 'natt', label: 'Natt' }, { value: 'fjord', label: 'Fjord' }, { value: 'birch', label: 'Birch' }]} />
+        </TweakSection>
+        <TweakSection label="Exercise Mix">
+          <TweakRadio value={tweaks.exerciseMix} onChange={v => setTweak('exerciseMix', v)}
+            options={[{ value: 'cycle', label: 'Cycle' }, { value: 'write', label: 'Write-heavy' }, { value: 'reveal', label: 'Reveal only' }]} />
+        </TweakSection>
+        <TweakSection label="Card Density">
+          <TweakRadio value={tweaks.density} onChange={v => setTweak('density', v)}
+            options={[{ value: 'compact', label: 'Compact' }, { value: 'comfortable', label: 'Normal' }, { value: 'spacious', label: 'Spacious' }]} />
+        </TweakSection>
+      </TweaksPanel>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
