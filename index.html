@@ -384,10 +384,48 @@ function ProgressBar({ current, total, t }) {
 
 // ─── HOME SCREEN ──────────────────────────────────────────────────────────────
 function HomeScreen({ t, verbs, vocab, onNavigate }) {
-  const cards = [
-    { id: 'vocab-en-no', title: 'Nouns',      sub: 'English → Norwegian',               count: `${vocab.length} words` },
-    { id: 'verbs',       title: 'Verb Forms',  sub: 'Presens · Preteritum · Perfektum',  count: `${verbs.length} verbs` },
+  const vocabCards = [
+    { id: 'vocab-en-no',  title: 'Nouns',              sub: 'English → Norwegian',          count: `${vocab.length} words` },
+    { id: 'vocab-no-en',  title: 'Reverse Vocab',       sub: 'Norwegian → English',          count: `${vocab.length} words` },
+    { id: 'spelling-bee', title: 'Spelling Bee',        sub: 'Type from memory',             count: `${vocab.length} words` },
+    { id: 'category-sort',title: 'Category Sort',       sub: 'Sort by word type',            count: `${vocab.length} words` },
   ];
+  const verbCards = [
+    { id: 'verbs',        title: 'Verb Forms',          sub: 'Presens · Preteritum · Perfektum', count: `${verbs.length} verbs` },
+    { id: 'verb-type',    title: 'Conjugation Typing',  sub: 'Type the correct form',        count: `${verbs.length} verbs` },
+    { id: 'verb-table',   title: 'Full Verb Table',     sub: 'All forms per verb',           count: `${verbs.length} verbs` },
+    { id: 'verb-reverse', title: 'Reverse Conjugation', sub: 'Find the verb from its form',  count: `${verbs.length} verbs` },
+  ];
+
+  function CardBtn({ c }) {
+    return (
+      <button
+        onClick={() => onNavigate(c.id)}
+        style={{
+          background: t.surface, border: `1px solid ${t.border}`,
+          borderRadius: 16, padding: '14px 18px', cursor: 'pointer',
+          textAlign: 'left', fontFamily: 'Sora, sans-serif', width: '100%',
+          transition: 'transform .12s ease',
+          WebkitTapHighlightColor: 'transparent',
+        }}
+        onPointerDown={e => e.currentTarget.style.transform = 'scale(.98)'}
+        onPointerUp={e => e.currentTarget.style.transform = 'scale(1)'}
+        onPointerLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <p style={{ fontSize: 15, fontWeight: 600, color: t.text, marginBottom: 3 }}>{c.title}</p>
+            <p style={{ fontSize: 12, color: t.textSub, fontWeight: 400 }}>{c.sub}</p>
+          </div>
+          <span style={{
+            fontSize: 12, color: t.textSub, background: t.surfaceAlt,
+            borderRadius: 20, padding: '3px 9px', fontWeight: 500,
+            whiteSpace: 'nowrap', marginLeft: 10, flexShrink: 0,
+          }}>{c.count}</span>
+        </div>
+      </button>
+    );
+  }
 
   return (
     <div className="scroll-area" style={{ padding: '0 20px' }}>
@@ -400,58 +438,21 @@ function HomeScreen({ t, verbs, vocab, onNavigate }) {
 
       <div style={{ height: 1, background: t.border, margin: '16px 0' }} />
 
-      <p style={{ fontSize: 11, color: t.textSub, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: 10 }}>Practice</p>
-
-      {/* Practice cards */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {cards.map(c => (
-          <button
-            key={c.id}
-            onClick={() => onNavigate(c.id)}
-            style={{
-              background: t.surface, border: `1px solid ${t.border}`,
-              borderRadius: 16, padding: '16px 18px', cursor: 'pointer',
-              textAlign: 'left', fontFamily: 'Sora, sans-serif',
-              transition: 'transform .12s ease, box-shadow .12s ease',
-              WebkitTapHighlightColor: 'transparent',
-            }}
-            onPointerDown={e => e.currentTarget.style.transform = 'scale(.98)'}
-            onPointerUp={e => e.currentTarget.style.transform = 'scale(1)'}
-            onPointerLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div>
-                <p style={{ fontSize: 15, fontWeight: 600, color: t.text, marginBottom: 3 }}>{c.title}</p>
-                <p style={{ fontSize: 12, color: t.textSub, fontWeight: 400 }}>{c.sub}</p>
-              </div>
-              <span style={{
-                fontSize: 12, color: t.textSub, background: t.surfaceAlt,
-                borderRadius: 20, padding: '3px 9px', fontWeight: 500,
-                whiteSpace: 'nowrap', marginLeft: 10, flexShrink: 0,
-              }}>{c.count}</span>
-            </div>
-          </button>
-        ))}
+      <p style={{ fontSize: 11, color: t.textSub, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: 10 }}>Vocabulary</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+        {vocabCards.map(c => <CardBtn key={c.id} c={c} />)}
       </div>
 
-      {/* Quick reference */}
-      <div style={{ marginTop: 20, background: t.surfaceAlt, border: `1px solid ${t.border}`, borderRadius: 14, padding: '14px 16px', marginBottom: 24 }}>
-        <p style={{ fontSize: 11, color: t.textSub, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 10 }}>Quick reference</p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-          {verbs.slice(0, 4).map(v => (
-            <div key={v.english} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 12, color: t.textSub }}>{v.english}</span>
-              <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 12, color: t.text, fontWeight: 500 }}>{v.infinitiv}</span>
-            </div>
-          ))}
-        </div>
+      <p style={{ fontSize: 11, color: t.textSub, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: 10 }}>Verbs</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
+        {verbCards.map(c => <CardBtn key={c.id} c={c} />)}
       </div>
     </div>
   );
 }
 
 // ─── VOCAB SESSION ────────────────────────────────────────────────────────────
-function VocabSession({ t, vocab, onBack, onAgain, exerciseMix, d }) {
+function VocabSession({ t, vocab, onBack, onAgain, exerciseMix, d, reversed }) {
   const [cards] = React.useState(() => shuffle(vocab));
   const [idx, setIdx] = React.useState(0);
   const [flipped, setFlipped] = React.useState(false);
@@ -466,10 +467,15 @@ function VocabSession({ t, vocab, onBack, onAgain, exerciseMix, d }) {
   const seq = cardTypeMap[exerciseMix] || cardTypeMap.cycle;
   const cardType = seq[idx % seq.length];
   const card = cards[idx];
-  const front = card.english;
-  const back  = card.norwegian;
+  const front       = reversed ? card.norwegian : card.english;
+  const back        = reversed ? card.english   : card.norwegian;
+  const choiceField = reversed ? 'english'      : 'norwegian';
+  const frontLabel  = reversed ? 'Norsk'        : 'English';
+  const backLabel   = reversed ? 'English'      : 'Norsk';
+  const writePrompt = reversed ? 'Write in English' : 'Write in Norwegian';
+  const writePlaceholder = reversed ? 'Type the English word…' : 'Type the Norwegian word…';
 
-  const choices = React.useMemo(() => getChoices(back, vocab, 'norwegian'), [idx]);
+  const choices = React.useMemo(() => getChoices(back, vocab, choiceField), [idx]);
 
   function advance(correct) {
     if (correct) setScore(s => s + 1);
@@ -512,9 +518,9 @@ function VocabSession({ t, vocab, onBack, onAgain, exerciseMix, d }) {
 
       {/* Scrollable content */}
       <div key={animKey} className="scroll-area" style={{ padding: '8px 20px 24px', display: 'flex', flexDirection: 'column', gap: 12, animation: 'fadeUp .25s ease' }}>
-        {cardType === 0 && <FlipCard t={t} front={front} back={back} frontLabel="English" backLabel="Norsk" flipped={flipped} onFlip={() => setFlipped(true)} hint={card.hint} onGotIt={() => advance(true)} onRepeat={() => advance(false)} d={d} />}
-        {cardType === 1 && <MultipleChoice t={t} front={front} frontLabel="English" backLabel="Norsk" choices={choices} correct={back} selected={selected} result={result} shakeKey={shakeKey} hint={card.hint} onChoice={handleChoice} d={d} />}
-        {cardType === 2 && <FreeText t={t} front={front} correct={back} hint={card.hint} onAdvance={advance} d={d} />}
+        {cardType === 0 && <FlipCard t={t} front={front} back={back} frontLabel={frontLabel} backLabel={backLabel} flipped={flipped} onFlip={() => setFlipped(true)} hint={card.hint} onGotIt={() => advance(true)} onRepeat={() => advance(false)} d={d} />}
+        {cardType === 1 && <MultipleChoice t={t} front={front} frontLabel={frontLabel} backLabel={backLabel} choices={choices} correct={back} selected={selected} result={result} shakeKey={shakeKey} hint={card.hint} onChoice={handleChoice} d={d} />}
+        {cardType === 2 && <FreeText t={t} front={front} frontLabel={frontLabel} correct={back} hint={card.hint} onAdvance={advance} d={d} promptLabel={writePrompt} placeholder={writePlaceholder} />}
       </div>
     </div>
   );
@@ -603,14 +609,13 @@ function MultipleChoice({ t, front, frontLabel, backLabel, choices, correct, sel
   );
 }
 
-function FreeText({ t, front, correct, hint, onAdvance, d }) {
+function FreeText({ t, front, frontLabel = 'English', correct, hint, onAdvance, d, promptLabel = 'Write in Norwegian', placeholder = 'Type the Norwegian word…' }) {
   const dp = d || DENSITY.comfortable;
   const [value, setValue] = React.useState('');
   const [result, setResult] = React.useState(null);
   const inputRef = React.useRef(null);
 
   React.useEffect(() => {
-    // Delay focus slightly to avoid iOS keyboard jump on animation
     const id = setTimeout(() => inputRef.current?.focus(), 100);
     return () => clearTimeout(id);
   }, []);
@@ -630,12 +635,12 @@ function FreeText({ t, front, correct, hint, onAdvance, d }) {
   return (
     <>
       <div style={{ background: t.surface, border: `1px solid ${t.border}`, borderRadius: 20, padding: dp.cardPad, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-        <p style={{ fontSize: 11, color: t.textSub, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase' }}>English</p>
+        <p style={{ fontSize: 11, color: t.textSub, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase' }}>{frontLabel}</p>
         <p style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: dp.fontSize, fontWeight: 500, color: t.text, textAlign: 'center' }}>{front}</p>
         {hint && <span style={{ fontSize: 11, color: t.textSub }}>{hint}</span>}
       </div>
 
-      <p style={{ fontSize: 11, color: t.textSub, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase', textAlign: 'center' }}>Write in Norwegian</p>
+      <p style={{ fontSize: 11, color: t.textSub, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase', textAlign: 'center' }}>{promptLabel}</p>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <input
@@ -644,7 +649,7 @@ function FreeText({ t, front, correct, hint, onAdvance, d }) {
           onChange={e => setValue(e.target.value)}
           onKeyDown={handleKey}
           disabled={!!result}
-          placeholder="Type the Norwegian word…"
+          placeholder={placeholder}
           style={{
             width: '100%', padding: '14px 16px', height: 52,
             background: bg, border: `1.5px solid ${borderColor}`, borderRadius: 14,
@@ -789,6 +794,445 @@ function VerbSession({ t, verbs, onBack, onAgain }) {
   );
 }
 
+// ─── SPELLING BEE SESSION ─────────────────────────────────────────────────────
+function SpellingBeeSession({ t, vocab, onBack, onAgain, d }) {
+  const dp = d || DENSITY.comfortable;
+  const [cards] = React.useState(() => shuffle(vocab));
+  const [idx, setIdx] = React.useState(0);
+  const [score, setScore] = React.useState(0);
+  const [done, setDone] = React.useState(false);
+  const [animKey, setAnimKey] = React.useState(0);
+
+  function advance(correct) {
+    if (correct) setScore(s => s + 1);
+    setTimeout(() => {
+      if (idx + 1 >= cards.length) { setDone(true); return; }
+      setIdx(i => i + 1);
+      setAnimKey(k => k + 1);
+    }, 900);
+  }
+
+  if (done) return <SessionEnd t={t} score={score} total={cards.length} onBack={onBack} onAgain={onAgain} label="Spelt correctly" />;
+
+  const card = cards[idx];
+  const letterHint = card.norwegian.split('').map(ch => ch === ' ' ? '  ' : '_').join(' ');
+
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div style={{ padding: '8px 20px 10px', flexShrink: 0 }}>
+        <BackButton t={t} onPress={onBack} />
+        <div style={{ marginTop: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 7 }}>
+            <span style={{ fontSize: 12, color: t.textSub }}>Spelling bee</span>
+            <span style={{ fontSize: 12, color: t.textSub }}>{idx + 1} / {cards.length}</span>
+          </div>
+          <ProgressBar current={idx + 1} total={cards.length} t={t} />
+        </div>
+      </div>
+
+      <div key={animKey} className="scroll-area" style={{ padding: '8px 20px 24px', display: 'flex', flexDirection: 'column', gap: 12, animation: 'fadeUp .25s ease' }}>
+        <div style={{ background: t.surface, border: `1px solid ${t.border}`, borderRadius: 20, padding: dp.cardPad, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+          <p style={{ fontSize: 11, color: t.textSub, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase' }}>English</p>
+          <p style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: dp.fontSize, fontWeight: 500, color: t.text, textAlign: 'center' }}>{card.english}</p>
+          {card.hint && <span style={{ fontSize: 11, color: t.textSub }}>{card.hint}</span>}
+          <p style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 13, color: t.textSub, letterSpacing: '0.15em', marginTop: 4 }}>{letterHint}</p>
+        </div>
+        <FreeText t={t} front={card.english} frontLabel="English" correct={card.norwegian} hint={null} onAdvance={advance} d={dp} promptLabel="Spell in Norwegian" placeholder="Type the Norwegian spelling…" />
+      </div>
+    </div>
+  );
+}
+
+// ─── CATEGORY SORT SESSION ────────────────────────────────────────────────────
+function CategorySortSession({ t, vocab, onBack, onAgain }) {
+  const questions = React.useMemo(() => {
+    const counts = {};
+    vocab.forEach(v => { counts[v.hint] = (counts[v.hint] || 0) + 1; });
+    const cats = Object.keys(counts).filter(k => k).sort((a, b) => counts[b] - counts[a]).slice(0, 3);
+    if (cats.length < 2) return null;
+    const eligible = vocab.filter(v => cats.includes(v.hint));
+    return shuffle(eligible).slice(0, Math.min(12, eligible.length));
+  }, []);
+
+  const [idx, setIdx] = React.useState(0);
+  const [selected, setSelected] = React.useState(null);
+  const [result, setResult] = React.useState(null);
+  const [score, setScore] = React.useState(0);
+  const [done, setDone] = React.useState(false);
+  const [animKey, setAnimKey] = React.useState(0);
+
+  if (!questions) {
+    return (
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 28px', gap: 16 }}>
+        <p style={{ fontSize: 15, color: t.textSub, textAlign: 'center' }}>Not enough categories in your vocabulary to run this exercise.</p>
+        <button onClick={onBack} style={{ padding: '14px 28px', background: t.accent, border: 'none', borderRadius: 14, cursor: 'pointer', fontFamily: 'Sora, sans-serif', fontSize: 14, fontWeight: 600, color: '#fff' }}>Back</button>
+      </div>
+    );
+  }
+
+  if (done) return <SessionEnd t={t} score={score} total={questions.length} onBack={onBack} onAgain={onAgain} label="Correctly sorted" />;
+
+  const categories = [...new Set(questions.map(q => q.hint))].sort();
+  const card = questions[idx];
+
+  function handlePick(cat) {
+    if (selected) return;
+    setSelected(cat);
+    const ok = cat === card.hint;
+    setResult(ok ? 'correct' : 'wrong');
+    if (ok) setScore(s => s + 1);
+    setTimeout(() => {
+      if (idx + 1 >= questions.length) { setDone(true); return; }
+      setIdx(i => i + 1);
+      setSelected(null);
+      setResult(null);
+      setAnimKey(k => k + 1);
+    }, 700);
+  }
+
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div style={{ padding: '8px 20px 10px', flexShrink: 0 }}>
+        <BackButton t={t} onPress={onBack} />
+        <div style={{ marginTop: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 7 }}>
+            <span style={{ fontSize: 12, color: t.textSub }}>Category sort</span>
+            <span style={{ fontSize: 12, color: t.textSub }}>{idx + 1} / {questions.length}</span>
+          </div>
+          <ProgressBar current={idx + 1} total={questions.length} t={t} />
+        </div>
+      </div>
+
+      <div key={animKey} className="scroll-area" style={{ padding: '8px 20px 24px', display: 'flex', flexDirection: 'column', gap: 12, animation: 'fadeUp .25s ease' }}>
+        <div style={{ background: t.surface, border: `1px solid ${t.border}`, borderRadius: 20, padding: '28px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+          <p style={{ fontSize: 11, color: t.textSub, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase' }}>Norsk</p>
+          <p style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 28, fontWeight: 500, color: t.text, textAlign: 'center' }}>{card.norwegian}</p>
+          <p style={{ fontSize: 13, color: t.textSub }}>{card.english}</p>
+        </div>
+
+        <p style={{ fontSize: 11, color: t.textSub, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase', textAlign: 'center' }}>What category?</p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {categories.map(cat => {
+            let bg = t.surface, border = t.border, color = t.text;
+            if (selected === cat) {
+              bg = cat === card.hint ? t.correctSoft : t.wrongSoft;
+              border = cat === card.hint ? t.correct : t.wrong;
+              color = cat === card.hint ? t.correct : t.wrong;
+            } else if (selected && cat === card.hint) {
+              bg = t.correctSoft; border = t.correct; color = t.correct;
+            }
+            return (
+              <button key={cat} onClick={() => handlePick(cat)}
+                style={{
+                  background: bg, border: `1.5px solid ${border}`, borderRadius: 14,
+                  padding: '16px 18px', minHeight: 52,
+                  cursor: selected ? 'default' : 'pointer',
+                  fontFamily: 'IBM Plex Mono, monospace', fontSize: 16, fontWeight: 500,
+                  color, textAlign: 'center',
+                  transition: 'background .25s, border-color .25s, color .25s',
+                  WebkitTapHighlightColor: 'transparent',
+                }}
+              >{cat}</button>
+            );
+          })}
+        </div>
+
+        {selected && (
+          <div style={{ animation: 'fadeUp .2s ease', background: result === 'correct' ? t.correctSoft : t.wrongSoft, border: `1px solid ${result === 'correct' ? t.correct : t.wrong}`, borderRadius: 14, padding: '12px 16px' }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: result === 'correct' ? t.correct : t.wrong }}>
+              {result === 'correct' ? 'Riktig! ✓' : `Feil — it's ${card.hint}`}
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── VERB TYPING SESSION ──────────────────────────────────────────────────────
+function VerbTypingSession({ t, verbs, onBack, onAgain }) {
+  const questions = React.useMemo(() => {
+    const q = [];
+    shuffle(verbs).slice(0, 10).forEach(v => {
+      const form = VERB_FORMS[Math.floor(Math.random() * VERB_FORMS.length)];
+      q.push({ verb: v, form });
+    });
+    return q;
+  }, []);
+
+  const [idx, setIdx] = React.useState(0);
+  const [score, setScore] = React.useState(0);
+  const [done, setDone] = React.useState(false);
+  const [animKey, setAnimKey] = React.useState(0);
+
+  function advance(correct) {
+    if (correct) setScore(s => s + 1);
+    setTimeout(() => {
+      if (idx + 1 >= questions.length) { setDone(true); return; }
+      setIdx(i => i + 1);
+      setAnimKey(k => k + 1);
+    }, 900);
+  }
+
+  if (done) return <SessionEnd t={t} score={score} total={questions.length} onBack={onBack} onAgain={onAgain} label="Correct answers" />;
+
+  const q = questions[idx];
+
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div style={{ padding: '8px 20px 10px', flexShrink: 0 }}>
+        <BackButton t={t} onPress={onBack} />
+        <div style={{ marginTop: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 7 }}>
+            <span style={{ fontSize: 12, color: t.textSub }}>Conjugation typing</span>
+            <span style={{ fontSize: 12, color: t.textSub }}>{idx + 1} / {questions.length}</span>
+          </div>
+          <ProgressBar current={idx + 1} total={questions.length} t={t} />
+        </div>
+      </div>
+
+      <div key={animKey} className="scroll-area" style={{ padding: '8px 20px 24px', display: 'flex', flexDirection: 'column', gap: 12, animation: 'fadeUp .25s ease' }}>
+        <div style={{ background: t.surface, border: `1px solid ${t.border}`, borderRadius: 20, padding: '20px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <p style={{ fontSize: 11, color: t.textSub, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase' }}>Infinitiv</p>
+          <p style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 26, fontWeight: 500, color: t.text }}>{q.verb.infinitiv}</p>
+          <p style={{ fontSize: 13, color: t.textSub }}>{q.verb.english}</p>
+        </div>
+
+        <div style={{ background: t.accentSoft, border: `1.5px solid ${t.accent}`, borderRadius: 14, padding: '12px 16px' }}>
+          <p style={{ fontSize: 13, fontWeight: 600, color: t.accent }}>Type the {q.form.label}</p>
+          <p style={{ fontSize: 11, color: t.accent, opacity: .7, marginTop: 2 }}>{q.form.sublabel}</p>
+        </div>
+
+        <VerbInputField t={t} correct={q.verb[q.form.key]} onAdvance={advance} />
+      </div>
+    </div>
+  );
+}
+
+// ─── FULL VERB TABLE SESSION ──────────────────────────────────────────────────
+function VerbTableSession({ t, verbs, onBack, onAgain }) {
+  const steps = React.useMemo(() => {
+    const out = [];
+    shuffle(verbs).slice(0, 5).forEach(v => {
+      VERB_FORMS.forEach(form => out.push({ verb: v, form }));
+    });
+    return out;
+  }, []);
+
+  const [idx, setIdx] = React.useState(0);
+  const [score, setScore] = React.useState(0);
+  const [done, setDone] = React.useState(false);
+  const [animKey, setAnimKey] = React.useState(0);
+
+  function advance(correct) {
+    if (correct) setScore(s => s + 1);
+    setTimeout(() => {
+      if (idx + 1 >= steps.length) { setDone(true); return; }
+      setIdx(i => i + 1);
+      setAnimKey(k => k + 1);
+    }, 900);
+  }
+
+  if (done) return <SessionEnd t={t} score={score} total={steps.length} onBack={onBack} onAgain={onAgain} label="Forms correct" />;
+
+  const s = steps[idx];
+  const verbIdx = Math.floor(idx / VERB_FORMS.length) + 1;
+  const verbTotal = Math.ceil(steps.length / VERB_FORMS.length);
+
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div style={{ padding: '8px 20px 10px', flexShrink: 0 }}>
+        <BackButton t={t} onPress={onBack} />
+        <div style={{ marginTop: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 7 }}>
+            <span style={{ fontSize: 12, color: t.textSub }}>Verb {verbIdx} of {verbTotal} · {s.form.label}</span>
+            <span style={{ fontSize: 12, color: t.textSub }}>{idx + 1} / {steps.length}</span>
+          </div>
+          <ProgressBar current={idx + 1} total={steps.length} t={t} />
+        </div>
+      </div>
+
+      <div key={animKey} className="scroll-area" style={{ padding: '8px 20px 24px', display: 'flex', flexDirection: 'column', gap: 12, animation: 'fadeUp .25s ease' }}>
+        <div style={{ background: t.surface, border: `1px solid ${t.border}`, borderRadius: 20, padding: '20px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <p style={{ fontSize: 11, color: t.textSub, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase' }}>Infinitiv</p>
+          <p style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 26, fontWeight: 500, color: t.text }}>{s.verb.infinitiv}</p>
+          <p style={{ fontSize: 13, color: t.textSub }}>{s.verb.english}</p>
+        </div>
+
+        <div style={{ background: t.accentSoft, border: `1.5px solid ${t.accent}`, borderRadius: 14, padding: '12px 16px' }}>
+          <p style={{ fontSize: 13, fontWeight: 600, color: t.accent }}>Type the {s.form.label}</p>
+          <p style={{ fontSize: 11, color: t.accent, opacity: .7, marginTop: 2 }}>{s.form.sublabel}</p>
+        </div>
+
+        <VerbInputField t={t} correct={s.verb[s.form.key]} onAdvance={advance} />
+      </div>
+    </div>
+  );
+}
+
+// ─── VERB REVERSE SESSION ─────────────────────────────────────────────────────
+function VerbReverseSession({ t, verbs, onBack, onAgain }) {
+  const questions = React.useMemo(() => {
+    const q = [];
+    shuffle(verbs).slice(0, 10).forEach(v => {
+      const form = VERB_FORMS[Math.floor(Math.random() * VERB_FORMS.length)];
+      q.push({ verb: v, form, conjugated: v[form.key] });
+    });
+    return q;
+  }, []);
+
+  const [idx, setIdx] = React.useState(0);
+  const [selected, setSelected] = React.useState(null);
+  const [result, setResult] = React.useState(null);
+  const [score, setScore] = React.useState(0);
+  const [done, setDone] = React.useState(false);
+  const [animKey, setAnimKey] = React.useState(0);
+  const [shakeKey, setShakeKey] = React.useState(0);
+
+  const q = questions[idx];
+  const correct = q.verb.infinitiv;
+  const choices = React.useMemo(() => getChoices(correct, verbs, 'infinitiv'), [idx]);
+
+  function handleChoice(ch) {
+    if (selected) return;
+    setSelected(ch);
+    const ok = ch === correct;
+    setResult(ok ? 'correct' : 'wrong');
+    if (!ok) setShakeKey(k => k + 1);
+    if (ok) setScore(s => s + 1);
+    setTimeout(() => {
+      if (idx + 1 >= questions.length) { setDone(true); return; }
+      setIdx(i => i + 1);
+      setSelected(null);
+      setResult(null);
+      setAnimKey(k => k + 1);
+    }, 700);
+  }
+
+  if (done) return <SessionEnd t={t} score={score} total={questions.length} onBack={onBack} onAgain={onAgain} label="Correct answers" />;
+
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div style={{ padding: '8px 20px 10px', flexShrink: 0 }}>
+        <BackButton t={t} onPress={onBack} />
+        <div style={{ marginTop: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 7 }}>
+            <span style={{ fontSize: 12, color: t.textSub }}>Reverse conjugation</span>
+            <span style={{ fontSize: 12, color: t.textSub }}>{idx + 1} / {questions.length}</span>
+          </div>
+          <ProgressBar current={idx + 1} total={questions.length} t={t} />
+        </div>
+      </div>
+
+      <div key={animKey} className="scroll-area" style={{ padding: '8px 20px 24px', display: 'flex', flexDirection: 'column', gap: 12, animation: 'fadeUp .25s ease' }}>
+        <div style={{ background: t.surface, border: `1px solid ${t.border}`, borderRadius: 20, padding: '28px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+          <p style={{ fontSize: 11, color: t.textSub, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase' }}>{q.form.label} · {q.form.sublabel}</p>
+          <p style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 32, fontWeight: 500, color: t.text, textAlign: 'center' }}>{q.conjugated}</p>
+        </div>
+
+        <p style={{ fontSize: 11, color: t.textSub, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase', textAlign: 'center' }}>Which verb is this?</p>
+
+        <div key={shakeKey} style={{ display: 'flex', flexDirection: 'column', gap: 8, animation: result === 'wrong' ? 'shake .4s ease' : 'none' }}>
+          {choices.map(ch => {
+            let bg = t.surface, border = t.border, color = t.text;
+            if (selected === ch) {
+              bg = ch === correct ? t.correctSoft : t.wrongSoft;
+              border = ch === correct ? t.correct : t.wrong;
+              color = ch === correct ? t.correct : t.wrong;
+            } else if (selected && ch === correct) {
+              bg = t.correctSoft; border = t.correct; color = t.correct;
+            }
+            return (
+              <button key={ch} onClick={() => handleChoice(ch)}
+                style={{
+                  background: bg, border: `1.5px solid ${border}`, borderRadius: 14,
+                  padding: '14px 18px', minHeight: 52,
+                  cursor: selected ? 'default' : 'pointer',
+                  fontFamily: 'IBM Plex Mono, monospace', fontSize: 15, fontWeight: 500,
+                  color, textAlign: 'left',
+                  transition: 'background .25s, border-color .25s, color .25s',
+                  WebkitTapHighlightColor: 'transparent',
+                }}
+              >{ch}</button>
+            );
+          })}
+        </div>
+
+        {selected && (
+          <div style={{ animation: 'fadeUp .2s ease', background: result === 'correct' ? t.correctSoft : t.wrongSoft, border: `1px solid ${result === 'correct' ? t.correct : t.wrong}`, borderRadius: 14, padding: '12px 16px' }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: result === 'correct' ? t.correct : t.wrong }}>
+              {result === 'correct' ? 'Riktig! ✓' : `Feil — correct: ${correct}`}
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── SHARED VERB INPUT ────────────────────────────────────────────────────────
+function VerbInputField({ t, correct, onAdvance }) {
+  const [value, setValue] = React.useState('');
+  const [result, setResult] = React.useState(null);
+  const inputRef = React.useRef(null);
+
+  React.useEffect(() => {
+    const id = setTimeout(() => inputRef.current?.focus(), 100);
+    return () => clearTimeout(id);
+  }, []);
+
+  function check() {
+    if (!value.trim() || result) return;
+    const ok = value.trim().toLowerCase() === correct.toLowerCase();
+    setResult(ok ? 'correct' : 'wrong');
+    setTimeout(() => onAdvance(ok), 900);
+  }
+
+  const borderColor = result === 'correct' ? t.correct : result === 'wrong' ? t.wrong : value ? t.accent : t.border;
+  const bg = result === 'correct' ? t.correctSoft : result === 'wrong' ? t.wrongSoft : t.surface;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <input
+        ref={inputRef}
+        value={value}
+        onChange={e => setValue(e.target.value)}
+        onKeyDown={e => e.key === 'Enter' && check()}
+        disabled={!!result}
+        placeholder="Type the conjugated form…"
+        style={{
+          width: '100%', padding: '14px 16px', height: 52,
+          background: bg, border: `1.5px solid ${borderColor}`, borderRadius: 14,
+          fontFamily: 'IBM Plex Mono, monospace', fontSize: 16, color: t.text,
+          outline: 'none', transition: 'border-color .2s, background .2s',
+          caretColor: t.accent,
+        }}
+      />
+      {!result && (
+        <button onClick={check} disabled={!value.trim()}
+          style={{
+            width: '100%', padding: '14px', height: 52,
+            background: value.trim() ? t.accent : t.surfaceAlt,
+            border: 'none', borderRadius: 14,
+            cursor: value.trim() ? 'pointer' : 'default',
+            fontFamily: 'Sora, sans-serif', fontSize: 14, fontWeight: 600,
+            color: value.trim() ? '#fff' : t.textSub,
+            transition: 'background .2s',
+          }}
+        >Check</button>
+      )}
+      {result && (
+        <div style={{ animation: 'fadeUp .2s ease', background: result === 'correct' ? t.correctSoft : t.wrongSoft, border: `1px solid ${result === 'correct' ? t.correct : t.wrong}`, borderRadius: 14, padding: '12px 16px' }}>
+          <p style={{ fontSize: 13, fontWeight: 600, color: result === 'correct' ? t.correct : t.wrong }}>
+            {result === 'correct' ? 'Riktig! ✓' : `Feil — correct: ${correct}`}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── SESSION END ──────────────────────────────────────────────────────────────
 function SessionEnd({ t, score, total, onBack, onAgain, label }) {
   const pct = Math.round((score / total) * 100);
@@ -828,9 +1272,15 @@ function NorwegianApp({ t, verbs, vocab, exerciseMix = 'cycle', density = 'comfo
   const restart = () => setSessionKey(k => k + 1);
 
   const inner = () => {
-    if (screen === 'home')        return <HomeScreen   t={t} verbs={verbs} vocab={vocab} onNavigate={setScreen} />;
-    if (screen === 'vocab-en-no') return <VocabSession key={sessionKey} t={t} vocab={vocab} exerciseMix={exerciseMix} d={d} onBack={goHome} onAgain={restart} />;
-    if (screen === 'verbs')       return <VerbSession  key={sessionKey} t={t} verbs={verbs} onBack={goHome} onAgain={restart} />;
+    if (screen === 'home')         return <HomeScreen         t={t} verbs={verbs} vocab={vocab} onNavigate={setScreen} />;
+    if (screen === 'vocab-en-no')  return <VocabSession       key={sessionKey} t={t} vocab={vocab} exerciseMix={exerciseMix} d={d} onBack={goHome} onAgain={restart} />;
+    if (screen === 'vocab-no-en')  return <VocabSession       key={sessionKey} t={t} vocab={vocab} exerciseMix={exerciseMix} d={d} onBack={goHome} onAgain={restart} reversed />;
+    if (screen === 'spelling-bee') return <SpellingBeeSession key={sessionKey} t={t} vocab={vocab} d={d} onBack={goHome} onAgain={restart} />;
+    if (screen === 'category-sort')return <CategorySortSession key={sessionKey} t={t} vocab={vocab} onBack={goHome} onAgain={restart} />;
+    if (screen === 'verbs')        return <VerbSession        key={sessionKey} t={t} verbs={verbs} onBack={goHome} onAgain={restart} />;
+    if (screen === 'verb-type')    return <VerbTypingSession  key={sessionKey} t={t} verbs={verbs} onBack={goHome} onAgain={restart} />;
+    if (screen === 'verb-table')   return <VerbTableSession   key={sessionKey} t={t} verbs={verbs} onBack={goHome} onAgain={restart} />;
+    if (screen === 'verb-reverse') return <VerbReverseSession key={sessionKey} t={t} verbs={verbs} onBack={goHome} onAgain={restart} />;
   };
 
   // Gear button style adapts to current theme
